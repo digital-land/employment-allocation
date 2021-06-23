@@ -4,7 +4,7 @@
 
 
 ifeq ($(DATASET),)
-DATASET=$(shell basename -s .git `git config --get remote.origin.url`)
+DATASET=$(REPOSITORY)
 endif
 
 ifeq ($(COLLECTION),)
@@ -12,11 +12,13 @@ COLLECTION=$(DATASET)
 endif
 
 ifeq ($(DATASET_PATH),)
+ifeq ($(NO_DATASET),)
 DATASET_PATH=$(DATASET_DIR)$(DATASET).sqlite3
+endif
 endif
 
 ifeq ($(DATASET_URL),)
-DATASET_URL='https://github.com/digital-land/$(COLLECTION)-collection/raw/main/dataset/$(DATASET).sqlite3'
+DATASET_URL='https://collection-dataset.s3.eu-west-2.amazonaws.com/$(COLLECTION)-collection/dataset/$(DATASET).sqlite3'
 endif
 
 ifeq ($(DATASET_DIR),)
@@ -37,7 +39,7 @@ render:: $(TEMPLATE_FILES) $(SPECIFICATION_FILES) $(DATASET_FILES) $(DATASET_PAT
 ifneq ($(RENDER_COMMAND),)
 	$(RENDER_COMMAND)
 else
-	digital-land --pipeline-name $(DATASET) render --dataset-path $(DATASET_PATH)
+	digital-land --pipeline-name $(DATASET) render --dataset-path $(DATASET_PATH) $(RENDER_FLAGS)
 endif
 	@touch ./docs/.nojekyll
 
@@ -54,18 +56,16 @@ clobber-docs::
 	rm -rf $(DOCS_DIR)
 
 makerules::
-	curl -qsL '$(SOURCE_URL)/makerules/main/render.mk' > makerules/render.mk
+	curl -qfsL '$(SOURCE_URL)/makerules/main/render.mk' > makerules/render.mk
 
 commit-docs::
 	git add docs
 	git diff --quiet && git diff --staged --quiet || (git commit -m "Rebuilt docs $(shell date +%F)"; git push origin $(BRANCH))
 
-# TBD: use data package
-# -- this assumes pages are in a different repository to the pipeline
 ifneq ($(DATASET_PATH),)
 $(DATASET_PATH):
 	mkdir -p $(DATASET_DIR)
-	curl -qsL $(DATASET_URL) > $(DATASET_PATH)
+	curl -qfsL $(DATASET_URL) > $(DATASET_PATH)
 endif
 
 # TBD: remove this rule
